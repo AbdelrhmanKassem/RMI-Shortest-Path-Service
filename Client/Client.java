@@ -9,26 +9,42 @@ import java.util.Random;
 import Registry.IGraphService;
 
 public class Client extends Thread {
-    public int clientID;
+    private int clientID;
+    private int maxNumberOfBatches;
+    private int maxNumberOfOperations;
+    private int maxNumberOfGraphNodes;
+    private int writePercentage;
+    private boolean deterministic;
 
-    public Client(int clientID) {
+    public Client(int clientID, boolean deterministic) {
         this.clientID = clientID;
+        this.deterministic = deterministic;
+        this.maxNumberOfBatches = 100;
+        this.maxNumberOfOperations = 15;
+        this.maxNumberOfGraphNodes = 15;
+        this.writePercentage = 67;
+    }
+
+    public Client(int clientID, boolean deterministic, int maxNumberOfBatches, int maxNumberOfOperations,
+            int maxNumberOfGraphNodes,
+            int writePercentage) {
+        this.clientID = clientID;
+        this.deterministic = deterministic;
+        this.maxNumberOfBatches = maxNumberOfBatches;
+        this.maxNumberOfOperations = maxNumberOfOperations;
+        this.maxNumberOfGraphNodes = maxNumberOfGraphNodes;
+        this.writePercentage = writePercentage;
     }
 
     public void run() {
         try {
-            System.out.println("ClientID: " + clientID);
+            System.out.println("ClientID: " + clientID + " started");
             IGraphService graphService = (IGraphService) Naming.lookup("rmi://localhost:1099/GraphService");
             Random randomGenerator = new Random();
-            int numberOfBatches = randomGenerator.nextInt(100);
+            int numberOfBatches = deterministic ? maxNumberOfBatches
+                    : randomGenerator.nextInt(maxNumberOfBatches) + 1;
             for (int i = 0; i < numberOfBatches; i++) {
-                System.out.println("Generating Batch #" + (i+1));
-                // TODO: Generate Batch of random number of operations
-                long startTime = System.nanoTime();
-                String batchResult = graphService.executeBatch("Batch #" + (i+1));
-                long endTime = System.nanoTime();
-                // TODO: Log the result of the batch and the time
-                System.out.println("ClientID: " + clientID + " Batch result: " + batchResult + " in :" + (endTime - startTime) + " nanoseconds");
+                generateAndExecuteBatch(graphService);
                 Thread.sleep(randomGenerator.nextInt(10000));
             }
 
@@ -37,5 +53,19 @@ public class Client extends Thread {
             e.printStackTrace();
         }
 
+    }
+
+    private void generateAndExecuteBatch(IGraphService graphService) throws RemoteException {
+        Random randomGenerator = new Random();
+        int numberOfOperations = deterministic ? maxNumberOfOperations
+                : randomGenerator.nextInt(maxNumberOfOperations) + 1;
+        int numberOfGraphNodes = deterministic ? maxNumberOfGraphNodes
+                : randomGenerator.nextInt(maxNumberOfGraphNodes) + 1;
+        BatchManager batchManager = new BatchManager(clientID, numberOfOperations, numberOfGraphNodes, writePercentage);
+        String batchRequest = batchManager.generateBatch();
+        long startTime = System.nanoTime();
+        String batchResult = graphService.executeBatch(batchRequest);
+        long endTime = System.nanoTime();
+        batchManager.logBatchResult(batchResult, endTime - startTime);
     }
 }
