@@ -15,7 +15,6 @@ public class BFSGraph implements Graph {
         if(start == end)
             return 0;
         int dist = 0;
-        boolean found = false;
         Queue<Integer> queue = new LinkedList<>();
         Set<Integer> visited = new HashSet<>();
         queue.add(start);
@@ -27,8 +26,7 @@ public class BFSGraph implements Graph {
                     continue;
                 visited.add(curr);
                 if(curr.equals(end)){
-                    found = true;
-                    break;
+                    return dist;
                 }
                 if(graph.containsKey(curr)){
                     for(Integer val: graph.get(curr))
@@ -36,12 +34,8 @@ public class BFSGraph implements Graph {
                             queue.add(val);
                 }
             }
-            if(found)
-                break;
             dist++;
         }
-        if(found)
-            return dist;
         return -1;
     }
 }
