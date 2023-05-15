@@ -1,23 +1,17 @@
 package Client;
 
-public class BatchManager {
-    private int clientID;
+public class BatchGenerator {
     private int numberOfOperations;
     private int writePercentage;
     private int graphNodeCount;
-    private String batchRequest;
 
-    public BatchManager(int clientID, int numberOfOperations, int graphNodeCount, int writePercentage) {
-        this.clientID = clientID;
+    public BatchGenerator(int numberOfOperations, int graphNodeCount, int writePercentage) {
         this.numberOfOperations = numberOfOperations;
         this.graphNodeCount = graphNodeCount;
         this.writePercentage = writePercentage;
-        this.batchRequest = "";
     }
 
     public String generateBatch() {
-        if (batchRequest.length() > 0)
-            return batchRequest;
         StringBuilder batchBuilder = new StringBuilder();
         for (int i = 0; i < numberOfOperations; i++) {
             int operationType = (int) (Math.random() * 100);
@@ -35,14 +29,6 @@ public class BatchManager {
             }
         }
         batchBuilder.append('F');
-        batchRequest = batchBuilder.toString();
-        return batchRequest;
+        return batchBuilder.toString();
     }
-
-    public void logBatchResult(String batchResult, long executionTime) {
-        System.out.println("ClientID: " + clientID + " Batch: " + batchRequest);
-        System.out.println(
-                "ClientID: " + clientID + " Batch result: " + batchResult + " in :" + executionTime + " nanoseconds");
-    }
-
 }

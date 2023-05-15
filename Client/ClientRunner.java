@@ -12,6 +12,7 @@ public class ClientRunner {
                 threads[i].join();
             }
         } catch (InterruptedException e) {
+            System.err.println("Client interrupted");
             e.printStackTrace();
         }
     }

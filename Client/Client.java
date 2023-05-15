@@ -10,62 +10,65 @@ import Registry.IGraphService;
 
 public class Client extends Thread {
     private int clientID;
-    private int maxNumberOfBatches;
-    private int maxNumberOfOperations;
-    private int maxNumberOfGraphNodes;
-    private int writePercentage;
-    private boolean deterministic;
+    private int numberOfBatches;
+    private BatchGenerator batchGenerator;
+    private LoggerManger logger;
 
     public Client(int clientID, boolean deterministic) {
         this.clientID = clientID;
-        this.deterministic = deterministic;
-        this.maxNumberOfBatches = 100;
-        this.maxNumberOfOperations = 15;
-        this.maxNumberOfGraphNodes = 15;
-        this.writePercentage = 67;
+        this.numberOfBatches = deterministic ? 10
+                : new Random().nextInt(10) + 1;
+        this.batchGenerator = configureBatchGenerator(10, 15, 67, deterministic);
+        this.logger = new LoggerManger(clientID);
     }
 
     public Client(int clientID, boolean deterministic, int maxNumberOfBatches, int maxNumberOfOperations,
             int maxNumberOfGraphNodes,
             int writePercentage) {
         this.clientID = clientID;
-        this.deterministic = deterministic;
-        this.maxNumberOfBatches = maxNumberOfBatches;
-        this.maxNumberOfOperations = maxNumberOfOperations;
-        this.maxNumberOfGraphNodes = maxNumberOfGraphNodes;
-        this.writePercentage = writePercentage;
+        this.numberOfBatches = deterministic ? maxNumberOfBatches
+                : new Random().nextInt(maxNumberOfBatches) + 1;
+        batchGenerator = configureBatchGenerator(maxNumberOfOperations, maxNumberOfGraphNodes, writePercentage,
+                deterministic);
+        this.logger = new LoggerManger(clientID);
     }
 
     public void run() {
         try {
             System.out.println("ClientID: " + clientID + " started");
             IGraphService graphService = (IGraphService) Naming.lookup("rmi://localhost:1099/GraphService");
-            Random randomGenerator = new Random();
-            int numberOfBatches = deterministic ? maxNumberOfBatches
-                    : randomGenerator.nextInt(maxNumberOfBatches) + 1;
             for (int i = 0; i < numberOfBatches; i++) {
-                generateAndExecuteBatch(graphService);
-                Thread.sleep(randomGenerator.nextInt(10000));
+                generateAndExecuteBatch(graphService, i + 1);
+                Thread.sleep(new Random().nextInt(9000) + 1000);
             }
-
         } catch (MalformedURLException | RemoteException | NotBoundException | InterruptedException e) {
-            // TODO Auto-generated catch block
+            System.err.println("ClientID " + clientID + " error");
             e.printStackTrace();
         }
-
     }
 
-    private void generateAndExecuteBatch(IGraphService graphService) throws RemoteException {
+    private BatchGenerator configureBatchGenerator(int maxNumberOfOperations, int maxNumberOfGraphNodes,
+            int writePercentage, boolean deterministic) {
         Random randomGenerator = new Random();
         int numberOfOperations = deterministic ? maxNumberOfOperations
                 : randomGenerator.nextInt(maxNumberOfOperations) + 1;
         int numberOfGraphNodes = deterministic ? maxNumberOfGraphNodes
                 : randomGenerator.nextInt(maxNumberOfGraphNodes) + 1;
-        BatchManager batchManager = new BatchManager(clientID, numberOfOperations, numberOfGraphNodes, writePercentage);
-        String batchRequest = batchManager.generateBatch();
+        return new BatchGenerator(numberOfOperations, numberOfGraphNodes, writePercentage);
+    }
+
+    private void generateAndExecuteBatch(IGraphService graphService, int batchNumber) throws RemoteException {
+        String batchRequest = batchGenerator.generateBatch();
         long startTime = System.nanoTime();
         String batchResult = graphService.executeBatch(batchRequest);
         long endTime = System.nanoTime();
-        batchManager.logBatchResult(batchResult, endTime - startTime);
+        logBatchResult(batchNumber, batchRequest, batchResult, endTime - startTime);
+    }
+
+    private void logBatchResult(int batchNumber, String batchRequest, String batchResult, long executionTime) {
+        logger.log("ClientID: " + clientID + " batch #" + batchNumber + " report");
+        logger.log("Batch request: " + batchRequest);
+        logger.log("Batch result: " + batchResult);
+        logger.log("Execution time: " + executionTime + " nanoseconds\n\n\n");
     }
 }
