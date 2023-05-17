@@ -60,15 +60,19 @@ public class Client extends Thread {
     private void generateAndExecuteBatch(IGraphService graphService, int batchNumber) throws RemoteException {
         String batchRequest = batchGenerator.generateBatch();
         long startTime = System.nanoTime();
-        String batchResult = graphService.executeBatch(batchRequest);
+        String batchResult = graphService.executeBatch(batchRequest, clientID);
         long endTime = System.nanoTime();
         logBatchResult(batchNumber, batchRequest, batchResult, endTime - startTime);
     }
 
     private void logBatchResult(int batchNumber, String batchRequest, String batchResult, long executionTime) {
-        logger.log("ClientID: " + clientID + " batch #" + batchNumber + " report");
-        logger.log("Batch request: " + batchRequest);
-        logger.log("Batch result: " + batchResult);
-        logger.log("Execution time: " + executionTime + " nanoseconds\n\n\n");
+        logger.log("ClientID: " + clientID + " batch #" + batchNumber + " report\n"
+                + "---------------------------------------------------------------\n"
+                + "Batch request:\n" + batchRequest
+                + "\n---------------------------------------------------------------\n"
+                + "Batch result:\n" + batchResult
+                + "\n---------------------------------------------------------------\n"
+                + "Execution time: " + executionTime + " nanoseconds\n\n\n");
+
     }
 }

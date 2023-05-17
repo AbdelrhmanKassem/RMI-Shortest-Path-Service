@@ -6,9 +6,8 @@ import java.rmi.registry.Registry;
 
 public class Server {
     public static void main(String[] args) throws RemoteException {
-        GraphService graphService = new GraphService();
+        GraphService graphService = new GraphService(0, "initialGraph.txt");
         Registry registry = LocateRegistry.createRegistry(1099);
         registry.rebind("GraphService", graphService);
-        System.out.println("Server is running...");
     }
 }
