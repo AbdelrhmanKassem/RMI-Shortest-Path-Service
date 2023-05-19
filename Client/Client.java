@@ -59,9 +59,9 @@ public class Client extends Thread {
 
     private void generateAndExecuteBatch(IGraphService graphService, int batchNumber) throws RemoteException {
         String batchRequest = batchGenerator.generateBatch();
-        long startTime = System.nanoTime();
+        long startTime = System.currentTimeMillis();
         String batchResult = graphService.executeBatch(batchRequest, clientID);
-        long endTime = System.nanoTime();
+        long endTime = System.currentTimeMillis();
         logBatchResult(batchNumber, batchRequest, batchResult, endTime - startTime);
     }
 
@@ -72,7 +72,7 @@ public class Client extends Thread {
                 + "\n---------------------------------------------------------------\n"
                 + "Batch result:\n" + batchResult
                 + "\n---------------------------------------------------------------\n"
-                + "Execution time: " + executionTime + " nanoseconds\n\n\n");
+                + "Execution time: " + executionTime + " ms\n\n\n");
 
     }
 }

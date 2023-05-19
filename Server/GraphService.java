@@ -5,12 +5,13 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
-import java.util.LinkedList;
+import java.util.ArrayList;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.Map;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 import Registry.IGraphService;
-import javafx.util.Pair;
 
 public class GraphService extends UnicastRemoteObject implements IGraphService {
     private Graph graph;
@@ -28,26 +29,25 @@ public class GraphService extends UnicastRemoteObject implements IGraphService {
 
     @Override
     public String executeBatch(String batch, int clientID) throws RemoteException {
-        long RequestStartTime = System.nanoTime();
+        long RequestStartTime = System.currentTimeMillis();
         String[] operations = batch.split("\n");
-        LinkedList<Pair<Integer, Integer>> queries = new LinkedList<>();
-        LinkedList<Integer> results = new LinkedList<>();
+        ArrayList<Integer> results = new ArrayList<>();
         logger.log("Client " + clientID + " requested to execute a batch");
 
         // Acquire Lock
         lock.lock();
         logger.log("Client " + clientID + " Acquired Lock");
 
-        long executionStartTime = System.nanoTime();
-        applyBatchOperations(operations, queries, results);
-        long executionEndTime = System.nanoTime();
+        long executionStartTime = System.currentTimeMillis();
+        applyBatchOperations(operations, results);
+        long executionEndTime = System.currentTimeMillis();
 
         // Release Lock
         lock.unlock();
         logger.log("Client " + clientID + " Released Lock");
 
         String result = results.stream().map(Object::toString).reduce("", (a, b) -> a + b + "\n");
-        long RequestEndTime = System.nanoTime();
+        long RequestEndTime = System.currentTimeMillis();
         Thread loggingThread = new Thread(() -> {
             logClientRequest(clientID, batch, result, RequestEndTime - RequestStartTime,
                     executionEndTime - executionStartTime);
@@ -76,7 +76,7 @@ public class GraphService extends UnicastRemoteObject implements IGraphService {
         }
     }
 
-    private void applyBatchOperations (String[] operations, LinkedList<Pair<Integer, Integer>> queries, LinkedList<Integer> results) {
+    private void applyBatchOperations (String[] operations, ArrayList<Integer> results) {
         for (String operation : operations) {
             if (operation.equals("F"))
                 break;
@@ -87,10 +87,60 @@ public class GraphService extends UnicastRemoteObject implements IGraphService {
                 graph.addEdge(srcNode, destNode);
             else if (operationParts[0].equals("D"))
                 graph.removeEdge(srcNode, destNode);
-            else if (operationParts[0].equals("Q")) {
-                queries.add(new Pair<>(srcNode, destNode));
+            else if (operationParts[0].equals("Q"))
                 results.add(graph.shortestPathLength(srcNode, destNode));
+        }
+    }
+
+    private void applyBatchOperationsThreaded (String[] operations, ArrayList<Integer> results) {
+        ArrayList<Thread> readThreads = new ArrayList<>();
+        Map<Integer, Integer> readResults = new ConcurrentHashMap<>();
+        for (int i = 0; i < operations.length; i++) {
+            String operation = operations[i];
+            if (operation.equals("F"))
+                break;
+            String[] operationParts = operation.split("\\s");
+            int srcNode = Integer.parseInt(operationParts[1]);
+            int destNode = Integer.parseInt(operationParts[2]);
+            if (operationParts[0].equals("A")) {
+                readThreads.forEach(thread -> {
+                    try {
+                        thread.join();
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                });
+                graph.addEdge(srcNode, destNode);
             }
+            else if (operationParts[0].equals("D")) {
+                readThreads.forEach(thread -> {
+                    try {
+                        thread.join();
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                });
+                graph.removeEdge(srcNode, destNode);
+            }
+            else if (operationParts[0].equals("Q")) {
+                int index = i;
+                Thread readThread = new Thread(() -> {
+                    readResults.put(index,graph.shortestPathLength(srcNode, destNode));
+                });
+                readThread.start();
+                readThreads.add(readThread);
+            }
+        }
+        readThreads.forEach(thread -> {
+            try {
+                thread.join();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        });
+        for (int i = 0; i < operations.length; i++) {
+            if (readResults.containsKey(i))
+                results.add(readResults.get(i));
         }
     }
 
@@ -101,6 +151,6 @@ public class GraphService extends UnicastRemoteObject implements IGraphService {
         + "\n---------------------------------------------------------------\n"
         + "Result: \n" + result
         + "\n---------------------------------------------------------------\n"
-        + "Request Time: " + requestTime + " ns\nExecution Time: " + executionTime + " ns\n\n\n");
+        + "Request Time: " + requestTime + " ms\nExecution Time: " + executionTime + " ms\n\n\n");
     }
 }
