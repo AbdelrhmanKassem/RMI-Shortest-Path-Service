@@ -111,6 +111,7 @@ public class GraphService extends UnicastRemoteObject implements IGraphService {
                     }
                 });
                 graph.addEdge(srcNode, destNode);
+                readThreads.clear();
             }
             else if (operationParts[0].equals("D")) {
                 readThreads.forEach(thread -> {
@@ -121,6 +122,7 @@ public class GraphService extends UnicastRemoteObject implements IGraphService {
                     }
                 });
                 graph.removeEdge(srcNode, destNode);
+                readThreads.clear();
             }
             else if (operationParts[0].equals("Q")) {
                 int index = i;

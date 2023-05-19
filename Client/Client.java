@@ -13,6 +13,7 @@ public class Client extends Thread {
     private int numberOfBatches;
     private BatchGenerator batchGenerator;
     private LoggerManger logger;
+    private double averageResponseTime;
 
     public Client(int clientID, boolean deterministic) {
         this.clientID = clientID;
@@ -20,6 +21,7 @@ public class Client extends Thread {
                 : new Random().nextInt(10) + 1;
         this.batchGenerator = configureBatchGenerator(10, 15, 67, deterministic);
         this.logger = new LoggerManger(clientID);
+        this.averageResponseTime = 0;
     }
 
     public Client(int clientID, boolean deterministic, int maxNumberOfBatches, int maxNumberOfOperations,
@@ -31,6 +33,7 @@ public class Client extends Thread {
         batchGenerator = configureBatchGenerator(maxNumberOfOperations, maxNumberOfGraphNodes, writePercentage,
                 deterministic);
         this.logger = new LoggerManger(clientID);
+        this.averageResponseTime = 0;
     }
 
     public void run() {
@@ -39,8 +42,9 @@ public class Client extends Thread {
             IGraphService graphService = (IGraphService) Naming.lookup("rmi://localhost:1099/GraphService");
             for (int i = 0; i < numberOfBatches; i++) {
                 generateAndExecuteBatch(graphService, i + 1);
-                Thread.sleep(new Random().nextInt(9000) + 1000);
+                Thread.sleep(1000);
             }
+            logger.log("Average Response Time: " + averageResponseTime + "ms");
         } catch (MalformedURLException | RemoteException | NotBoundException | InterruptedException e) {
             System.err.println("ClientID " + clientID + " error");
             e.printStackTrace();
@@ -62,6 +66,7 @@ public class Client extends Thread {
         long startTime = System.currentTimeMillis();
         String batchResult = graphService.executeBatch(batchRequest, clientID);
         long endTime = System.currentTimeMillis();
+        averageResponseTime += ((endTime - startTime) / numberOfBatches);
         logBatchResult(batchNumber, batchRequest, batchResult, endTime - startTime);
     }
 
